@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Scheduling Agent</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #171717;
+      --text: #ffffff;
+      --muted: #b3b3b3;
+      --accent: #6c63ff;
+      --accent-hover: #5a52db;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 520px;
+      background: var(--card);
+      border: 1px solid #2a2a2a;
+      border-radius: 14px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 2rem;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-size: 1rem;
+      font-weight: 700;
+      background: var(--accent);
+      color: var(--text);
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js" defer></script>
+</head>
+<body>
+  <main class="card">
+    <h1>Voice Scheduling Agent</h1>
+    <p>Click the button below to schedule a meeting using your voice.</p>
+    <button id="call-button" type="button">Start call</button>
+  </main>
+
+  <script>
+    const VAPI_PUBLIC_KEY = ""; // Replace with your VAPI public key
+    const VAPI_ASSISTANT_ID = ""; // Replace with your VAPI assistant ID
+
+    let vapi = null;
+    let callActive = false;
+
+    const callButton = document.getElementById("call-button");
+
+    function updateButton() {
+      callButton.textContent = callActive ? "End call" : "Start call";
+    }
+
+    function ensureVapiInitialized() {
+      if (vapi) return;
+      if (!window.Vapi) {
+        throw new Error("VAPI SDK did not load.");
+      }
+      vapi = new window.Vapi(VAPI_PUBLIC_KEY);
+
+      vapi.on("call-end", () => {
+        callActive = false;
+        updateButton();
+      });
+
+      vapi.on("error", (error) => {
+        console.error("VAPI error:", error);
+        callActive = false;
+        updateButton();
+      });
+    }
+
+    callButton.addEventListener("click", async () => {
+      if (!VAPI_PUBLIC_KEY || !VAPI_ASSISTANT_ID) {
+        alert("Please set VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID in static/index.html.");
+        return;
+      }
+
+      callButton.disabled = true;
+      try {
+        ensureVapiInitialized();
+
+        if (!callActive) {
+          await vapi.start(VAPI_ASSISTANT_ID);
+          callActive = true;
+        } else {
+          await vapi.stop();
+          callActive = false;
+        }
+
+        updateButton();
+      } catch (error) {
+        console.error("Call toggle failed:", error);
+      } finally {
+        callButton.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
