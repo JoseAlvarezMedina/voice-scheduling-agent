@@ -51,6 +51,13 @@
       line-height: 1.5;
     }
 
+    #status {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 20px;
+      min-height: 20px;
+    }
+
     button {
       border: 0;
       border-radius: 10px;
@@ -72,68 +79,82 @@
       opacity: 0.6;
     }
   </style>
-  <script src="https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.js" defer></script>
 </head>
 <body>
   <main class="card">
     <h1>Voice Scheduling Agent</h1>
     <p>Click the button below to schedule a meeting using your voice.</p>
+    <div id="status"></div>
     <button id="call-button" type="button">Start call</button>
   </main>
 
-  <script>
-    const VAPI_PUBLIC_KEY = "f66f39d8-22bf-4ae4-be93-c8b6da0f75ad"; // Replace with your VAPI public key
-    const VAPI_ASSISTANT_ID = "7365ac4a-57f2-4028-9774-1aeea239b5dc"; // Replace with your VAPI assistant ID
+  <script type="module">
+    import Vapi from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.mjs";
+
+    const VAPI_PUBLIC_KEY = "f66f39d8-22bf-4ae4-be93-c8b6da0f75ad";
+    const VAPI_ASSISTANT_ID = "7365ac4a-57f2-4028-9774-1aeea239b5dc";
+
+    const callButton = document.getElementById("call-button");
+    const statusEl = document.getElementById("status");
 
     let vapi = null;
     let callActive = false;
 
-    const callButton = document.getElementById("call-button");
+    function setStatus(text) {
+      statusEl.textContent = text;
+    }
 
     function updateButton() {
       callButton.textContent = callActive ? "End call" : "Start call";
+      callButton.style.background = callActive ? "#c0392b" : "var(--accent)";
     }
 
-    function ensureVapiInitialized() {
+    function initVapi() {
       if (vapi) return;
-      if (!window.Vapi) {
-        throw new Error("VAPI SDK did not load.");
-      }
-      vapi = new window.Vapi(VAPI_PUBLIC_KEY);
+      vapi = new Vapi(VAPI_PUBLIC_KEY);
+
+      vapi.on("call-start", () => {
+        setStatus("Call connected — speak now.");
+      });
 
       vapi.on("call-end", () => {
         callActive = false;
         updateButton();
+        setStatus("Call ended.");
       });
+
+      vapi.on("speech-start", () => setStatus("Assistant is speaking..."));
+      vapi.on("speech-end", () => setStatus("Listening..."));
 
       vapi.on("error", (error) => {
         console.error("VAPI error:", error);
         callActive = false;
         updateButton();
+        setStatus("An error occurred. Please try again.");
       });
     }
 
     callButton.addEventListener("click", async () => {
-      if (!VAPI_PUBLIC_KEY || !VAPI_ASSISTANT_ID) {
-        alert("Please set VAPI_PUBLIC_KEY and VAPI_ASSISTANT_ID in static/index.html.");
-        return;
-      }
-
       callButton.disabled = true;
       try {
-        ensureVapiInitialized();
+        initVapi();
 
         if (!callActive) {
+          setStatus("Connecting...");
           await vapi.start(VAPI_ASSISTANT_ID);
           callActive = true;
         } else {
           await vapi.stop();
           callActive = false;
+          setStatus("");
         }
 
         updateButton();
       } catch (error) {
         console.error("Call toggle failed:", error);
+        setStatus("Failed to connect. Please try again.");
+        callActive = false;
+        updateButton();
       } finally {
         callButton.disabled = false;
       }
