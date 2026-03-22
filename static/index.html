@@ -79,6 +79,15 @@
       opacity: 0.6;
     }
   </style>
+  <script>
+    (function(d, t) {
+      var g = document.createElement(t), s = d.getElementsByTagName(t)[0];
+      g.src = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@2.5.2/dist/vapi.umd.js";
+      g.defer = true;
+      g.async = true;
+      s.parentNode.insertBefore(g, s);
+    })(document, "script");
+  </script>
 </head>
 <body>
   <main class="card">
@@ -88,9 +97,7 @@
     <button id="call-button" type="button">Start call</button>
   </main>
 
-  <script type="module">
-    import Vapi from "https://cdn.jsdelivr.net/npm/@vapi-ai/web@latest/dist/vapi.mjs";
-
+  <script>
     const VAPI_PUBLIC_KEY = "f66f39d8-22bf-4ae4-be93-c8b6da0f75ad";
     const VAPI_ASSISTANT_ID = "7365ac4a-57f2-4028-9774-1aeea239b5dc";
 
@@ -111,7 +118,10 @@
 
     function initVapi() {
       if (vapi) return;
-      vapi = new Vapi(VAPI_PUBLIC_KEY);
+      if (!window.Vapi) {
+        throw new Error("VAPI SDK did not load yet. Please try again.");
+      }
+      vapi = new window.Vapi(VAPI_PUBLIC_KEY);
 
       vapi.on("call-start", () => {
         setStatus("Call connected — speak now.");
@@ -126,8 +136,8 @@
       vapi.on("speech-start", () => setStatus("Assistant is speaking..."));
       vapi.on("speech-end", () => setStatus("Listening..."));
 
-      vapi.on("error", (error) => {
-        console.error("VAPI error:", error);
+      vapi.on("error", (e) => {
+        console.error("VAPI error:", e);
         callActive = false;
         updateButton();
         setStatus("An error occurred. Please try again.");
@@ -150,9 +160,9 @@
         }
 
         updateButton();
-      } catch (error) {
-        console.error("Call toggle failed:", error);
-        setStatus("Failed to connect. Please try again.");
+      } catch (e) {
+        console.error("Call toggle failed:", e);
+        setStatus(e.message || "Failed to connect. Please try again.");
         callActive = false;
         updateButton();
       } finally {
