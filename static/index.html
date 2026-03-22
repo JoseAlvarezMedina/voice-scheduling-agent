@@ -79,15 +79,7 @@
       opacity: 0.6;
     }
   </style>
-  <script>
-    (function(d, t) {
-      var g = document.createElement(t), s = d.getElementsByTagName(t)[0];
-      g.src = "https://cdn.jsdelivr.net/npm/@vapi-ai/web@2.5.2/dist/vapi.umd.js";
-      g.defer = true;
-      g.async = true;
-      s.parentNode.insertBefore(g, s);
-    })(document, "script");
-  </script>
+  <script src="https://cdn.jsdelivr.net/gh/balacodeio/Vapi-Web-UMD@latest/dist/latest/vapi-web-bundle.min.js"></script>
 </head>
 <body>
   <main class="card">
@@ -100,27 +92,27 @@
   <script>
     const VAPI_PUBLIC_KEY = "f66f39d8-22bf-4ae4-be93-c8b6da0f75ad";
     const VAPI_ASSISTANT_ID = "7365ac4a-57f2-4028-9774-1aeea239b5dc";
-  
+
     const callButton = document.getElementById("call-button");
     const statusEl = document.getElementById("status");
-  
+
     let vapi = null;
     let callActive = false;
-  
+
     function setStatus(text) {
       statusEl.textContent = text;
     }
-  
+
     function updateButton() {
       callButton.textContent = callActive ? "End call" : "Start call";
       callButton.style.background = callActive ? "#c0392b" : "var(--accent)";
     }
-  
+
     function waitForVapi(timeout = 5000) {
       return new Promise((resolve, reject) => {
-        if (window.Vapi) return resolve();
+        if (typeof Vapi !== "undefined") return resolve();
         const interval = setInterval(() => {
-          if (window.Vapi) {
+          if (typeof Vapi !== "undefined") {
             clearInterval(interval);
             resolve();
           }
@@ -131,14 +123,24 @@
         }, timeout);
       });
     }
-  
+
     function initVapi() {
       if (vapi) return;
-      vapi = new window.Vapi(VAPI_PUBLIC_KEY);
-      vapi.on("call-start", () => setStatus("Call connected — speak now."));
-      vapi.on("call-end", () => { callActive = false; updateButton(); setStatus("Call ended."); });
+      vapi = new Vapi(VAPI_PUBLIC_KEY);
+
+      vapi.on("call-start", () => {
+        setStatus("Call connected — speak now.");
+      });
+
+      vapi.on("call-end", () => {
+        callActive = false;
+        updateButton();
+        setStatus("Call ended.");
+      });
+
       vapi.on("speech-start", () => setStatus("Assistant is speaking..."));
       vapi.on("speech-end", () => setStatus("Listening..."));
+
       vapi.on("error", (e) => {
         console.error("VAPI error:", e);
         callActive = false;
@@ -146,14 +148,14 @@
         setStatus("An error occurred. Please try again.");
       });
     }
-  
+
     callButton.addEventListener("click", async () => {
       callButton.disabled = true;
       try {
         setStatus("Loading...");
         await waitForVapi();
         initVapi();
-  
+
         if (!callActive) {
           setStatus("Connecting...");
           await vapi.start(VAPI_ASSISTANT_ID);
@@ -163,7 +165,7 @@
           callActive = false;
           setStatus("");
         }
-  
+
         updateButton();
       } catch (e) {
         console.error("Call toggle failed:", e);
