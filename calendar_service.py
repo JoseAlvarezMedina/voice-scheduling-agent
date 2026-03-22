@@ -2,8 +2,9 @@ import base64
 import json
 import logging
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
@@ -46,7 +47,7 @@ def _load_credentials() -> Credentials:
 def _build_event_times(date: str, time: str) -> tuple[str, str]:
     try:
         start_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M").replace(
-            tzinfo=timezone.utc
+            tzinfo=ZoneInfo("America/Bogota")
         )
     except ValueError as exc:
         raise CalendarError(
@@ -69,8 +70,8 @@ def create_event(attendee_name: str, date: str, time: str, title: str) -> str:
     event_body: dict[str, Any] = {
         "summary": event_title,
         "description": f"Scheduled by voice assistant for {attendee_name}.",
-        "start": {"dateTime": start_rfc3339, "timeZone": "UTC"},
-        "end": {"dateTime": end_rfc3339, "timeZone": "UTC"},
+        "start": {"dateTime": start_rfc3339, "timeZone": "America/Bogota"},
+        "end": {"dateTime": end_rfc3339, "timeZone": "America/Bogota"},
     }
 
     try:
