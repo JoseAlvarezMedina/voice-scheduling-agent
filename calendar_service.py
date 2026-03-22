@@ -1,3 +1,8 @@
+"""
+Google Calendar integration using a service account.
+Decodes credentials from a base64 env var and creates calendar events on behalf of the calendar owner.
+"""
+
 import base64
 import json
 import logging
@@ -27,6 +32,7 @@ def _load_credentials() -> Credentials:
     if not credentials_b64:
         raise CalendarError("Missing GOOGLE_CREDENTIALS_B64 environment variable.")
 
+    # Credentials are stored as base64 to safely pass a JSON key through an environment variable
     try:
         decoded = base64.b64decode(credentials_b64).decode("utf-8")
         service_account_info: dict[str, Any] = json.loads(decoded)
@@ -36,6 +42,7 @@ def _load_credentials() -> Credentials:
         ) from exc
 
     try:
+        # Scope limited to calendar only — principle of least privilege
         return Credentials.from_service_account_info(
             service_account_info,
             scopes=CALENDAR_SCOPES,
@@ -46,6 +53,7 @@ def _load_credentials() -> Credentials:
 
 def _build_event_times(date: str, time: str) -> tuple[str, str]:
     try:
+        # Times are interpreted as America/Bogota (UTC-5) to match the user's local calendar
         start_dt = datetime.strptime(f"{date} {time}", "%Y-%m-%d %H:%M").replace(
             tzinfo=ZoneInfo("America/Bogota")
         )
@@ -76,6 +84,8 @@ def create_event(attendee_name: str, date: str, time: str, title: str) -> str:
 
     try:
         credentials = _load_credentials()
+        # cache_discovery=False prevents Railway from trying to write a discovery cache
+        # to a read-only filesystem, which would crash the server on first request
         service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
         created_event: dict[str, Any] = (
             service.events()
@@ -85,6 +95,7 @@ def create_event(attendee_name: str, date: str, time: str, title: str) -> str:
     except HttpError as exc:
         logger.exception("Google Calendar API request failed.")
         raise CalendarError("Google Calendar API request failed.") from exc
+    # Re-raise CalendarError as-is so the original descriptive message reaches the caller
     except CalendarError:
         raise
     except Exception as exc:

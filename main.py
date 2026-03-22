@@ -1,3 +1,8 @@
+"""
+FastAPI webhook server for the VAPI voice scheduling agent.
+Receives tool call payloads from VAPI and delegates to calendar_service to create Google Calendar events.
+"""
+
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -30,10 +35,12 @@ async def vapi_webhook(request: Request) -> dict:
     logger.info("Webhook received: %s", body)
 
     message = body.get("message", {})
+    # VAPI sends several message types (e.g. status updates) — only tool-calls require action
     if message.get("type") != "tool-calls":
         return {"status": "ignored"}
 
     tool_calls = message.get("toolCallList", [])
+    # VAPI expects a results array with one entry per tool call, matched by toolCallId
     results = []
 
     for call in tool_calls:
@@ -52,6 +59,7 @@ async def vapi_webhook(request: Request) -> dict:
     return {"results": results}
 
 
+# Isolated handler keeps route logic thin and makes the calendar call independently testable
 async def handle_create_event(args: dict) -> str:
     attendee_name: str = args.get("name", "Guest")
     date: str = args.get("date", "")
